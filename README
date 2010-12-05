@@ -1,0 +1,33 @@
+###- QUICK AND DIRTY: COMPILATION AND INSTALLATION -############################
+  You'll need curie-11, icemake and libduat-7...
+
+    $ ice -dif /usr
+
+
+################################################################################
+
+
+NOTE:
+  Please take note of the library licence (the COPYING file), as well as the
+  credits (the CREDITS file).
+
+
+###- DETAILS -##################################################################
+
+Compilation:
+  Make sure you have libcurie-4 or higher installed, then:
+
+    $ ice
+
+  A number of compilation options are available if you run into issues. To see
+  them, use:
+
+    $ ice --help
+
+Installation:
+  use this command to install regularly (for example into /usr, in the example):
+
+    $ ice -dif /some/prefix
+
+CONTACT:
+  Best bet is IRC: freenode #kyuba

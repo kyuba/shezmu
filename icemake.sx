@@ -1,0 +1,9 @@
+(programme "dnsfs" libcurie hosted
+  (name "dnsfs")
+  (description "DNS File System")
+  (version "1")
+  (url "http://kyuba.org/")
+
+  (libraries "duat" "sievert" "syscall")
+
+  (code "dnsfs"))
