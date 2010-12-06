@@ -287,16 +287,23 @@ static void Topen (struct d9r_io *io, int_16 tag, int_32 fid, int_8 mode)
 }
 
 static void add_file_with_content
-    (char *name, char *contents, struct dfs_directory *d_dir)
+    (char *name, char *contents, unsigned long length,
+     struct dfs_directory *d_dir)
 {
     struct dfs_file *d_ip4 =
-        dfs_mk_file (d_dir, name, (char *)0, (int_8 *)contents, 6, (void *)0,
-                     (void *)0, (void *)0);
+        dfs_mk_file (d_dir, name, (char *)0, (int_8 *)contents, length,
+	             (void *)0, (void *)0, (void *)0);
 
     d_ip4->c.mode     = 0650;
     d_ip4->c.uid      = "dnsfs";
     d_ip4->c.gid      = "dnsfs";
 }
+
+define_symbol (sym_ip4,    "ip4");
+define_symbol (sym_ip6,    "ip6");
+define_symbol (sym_dgram,  "dgram");
+define_symbol (sym_stream, "stream");
+define_symbol (sym_any,    "any");
 
 static void dnsfs_address_lookup (char *name, struct dfs_directory *d_dir)
 {
@@ -305,18 +312,85 @@ static void dnsfs_address_lookup (char *name, struct dfs_directory *d_dir)
 
     if (r == 0)
     {
-        struct addrinfo *c = ai;
+        struct addrinfo *c         = ai;
+	struct io       *io_ip4    = io_open_special ();
+	struct sexpr_io *io_ip4_sx = sx_open_o       (io_ip4);
+	char            *ip4_b;
+	struct io       *io_ip6    = io_open_special ();
+	struct sexpr_io *io_ip6_sx = sx_open_o       (io_ip6);
+	char            *ip6_b;
+
 	while (c->ai_next != (struct addrinfo *)0)
         {
+	    struct sockaddr_in  *ip4;
+	    struct sockaddr_in6 *ip6;
+	    unsigned long l;
+	    sexpr type = sx_nil;
+
+            switch (c->ai_socktype)
+            {
+                case SOCK_STREAM: type = sym_stream; break;
+                case SOCK_DGRAM:  type = sym_dgram;  break;
+                case 0:           type = sym_any;    break;
+            }
+
 	    switch (c->ai_family)
 	    {
-	        case AF_INET:
+                case AF_INET:
+                    ip4 = (struct sockaddr_in *)c->ai_addr;
+                    l = ip4->sin_addr.s_addr;
+
+		    sx_write (io_ip4_sx,
+		              cons (sym_ip4,
+                                 cons (type,
+		                 cons (make_integer (((l)       & 0xff)),
+		                 cons (make_integer (((l >> 8)  & 0xff)),
+		                 cons (make_integer (((l >> 16) & 0xff)),
+		                 cons (make_integer (((l >> 24) & 0xff)),
+                                       sx_end_of_list)))))));
+		    break;
+                case AF_INET6:
+                    ip6 = (struct sockaddr_in6 *)c->ai_addr;
+
+		    sx_write (io_ip6_sx,
+		              cons (sym_ip6,
+                                 cons (type,
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[0])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[1])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[2])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[3])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[4])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[5])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[6])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[7])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[8])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[9])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[10])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[11])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[12])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[13])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[14])),
+		                 cons (make_integer ((ip6->sin6_addr.s6_addr[15])),
+                                       sx_end_of_list)))))))))))))))))));
 		    break;
 	    }
 
 	    c = c->ai_next;
 	}
-        add_file_with_content ("ip4", "(nop)\n", d_dir);
+
+	ip4_b = resize_mem (io_ip4->length, io_ip4->buffer, io_ip4->buffersize);
+	io_ip4->buffer = (char*)0;
+	io_ip4->buffersize = 0;
+	ip6_b = resize_mem (io_ip6->length, io_ip6->buffer, io_ip6->buffersize);
+	io_ip6->buffer = (char*)0;
+	io_ip6->buffersize = 0;
+
+        add_file_with_content ("ip4", ip4_b, io_ip4->length, d_dir);
+        add_file_with_content ("ip6", ip6_b, io_ip6->length, d_dir);
+
+	sx_close_io (io_ip4_sx);
+	sx_close_io (io_ip6_sx);
+
         freeaddrinfo (ai);
     }
 }
